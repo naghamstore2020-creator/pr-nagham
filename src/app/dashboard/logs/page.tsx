@@ -43,15 +43,15 @@ export default function LogsPage() {
   const [exporting, setExporting] = useState(false);
   const limit = 20;
 
-  const [filterType, setFilterType] = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
+  const [filterType, setFilterType] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
   const [filterFrom, setFilterFrom] = useState("");
   const [filterTo, setFilterTo] = useState("");
 
   const buildFilters = useCallback(() => {
     const f: any = {};
-    if (filterType) f.type = filterType;
-    if (filterStatus) f.status = filterStatus;
+    if (filterType && filterType !== "all") f.type = filterType;
+    if (filterStatus && filterStatus !== "all") f.status = filterStatus;
     if (filterFrom) f.fromDate = filterFrom;
     if (filterTo) f.toDate = filterTo;
     return f;
@@ -122,7 +122,7 @@ export default function LogsPage() {
                   <SelectValue placeholder="الكل" />
                 </SelectTrigger>
                 <SelectContent className="bg-zinc-900 border-zinc-800">
-                  <SelectItem value="" className="text-xs">الكل</SelectItem>
+                  <SelectItem value="all" className="text-xs">الكل</SelectItem>
                   {Object.entries(JOB_TYPE_LABELS).map(([k, v]) => (
                     <SelectItem key={k} value={k} className="text-xs">{v}</SelectItem>
                   ))}
@@ -136,7 +136,7 @@ export default function LogsPage() {
                   <SelectValue placeholder="الكل" />
                 </SelectTrigger>
                 <SelectContent className="bg-zinc-900 border-zinc-800">
-                  <SelectItem value="" className="text-xs">الكل</SelectItem>
+                  <SelectItem value="all" className="text-xs">الكل</SelectItem>
                   {Object.entries(JOB_STATUS_LABELS).map(([k, v]) => (
                     <SelectItem key={k} value={k} className="text-xs">{v}</SelectItem>
                   ))}
