@@ -1,6 +1,8 @@
 import fs from "fs";
 import path from "path";
-import { uploadToStorage, downloadFromStorage } from "./supabase-storage";
+import { uploadToStorage, downloadFromStorage, ensureBucket } from "./supabase-storage";
+
+const isVercel = !!process.env.VERCEL;
 
 export async function saveUploadedFile(
   buffer: Buffer,
@@ -13,14 +15,16 @@ export async function saveUploadedFile(
   const url = await uploadToStorage(buffer, uniqueName);
   if (url) return url;
 
-  const uploadDir = path.join(process.cwd(), "public", "uploads");
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
+  if (isVercel) {
+    const bucketError = await ensureBucket();
+    if (bucketError) throw new Error(bucketError);
+    throw new Error("فشل رفع الملف إلى Supabase Storage");
   }
 
+  const uploadDir = path.join(process.cwd(), "public", "uploads");
+  if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
   const filePath = path.join(uploadDir, uniqueName);
   await fs.promises.writeFile(filePath, buffer);
-
   return `/uploads/${uniqueName}`;
 }
 

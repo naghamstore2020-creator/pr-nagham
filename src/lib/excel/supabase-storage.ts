@@ -31,6 +31,14 @@ export async function uploadToStorage(
   return urlData.publicUrl;
 }
 
+export async function ensureBucket(): Promise<string | null> {
+  if (!supabase) return "Supabase client not initialized";
+  const { data: buckets } = await supabase.storage.listBuckets();
+  const exists = buckets?.some((b) => b.name === BUCKET);
+  if (!exists) return `Bucket '${BUCKET}' does not exist. Create it in Supabase Dashboard → Storage.`;
+  return null;
+}
+
 export async function downloadFromStorage(
   fileUrl: string
 ): Promise<Buffer | null> {
