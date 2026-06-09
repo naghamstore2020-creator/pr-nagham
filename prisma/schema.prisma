@@ -1,0 +1,161 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  ADMIN
+  EDITOR
+  DEMO
+}
+
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  RETRYING
+}
+
+enum JobType {
+  DAILY_INVENTORY
+  FULL_INVENTORY
+  COST_UPDATE
+  SELL_UPDATE
+  FULL_UPDATE
+  AI_MATCHING
+}
+
+enum MatchStatus {
+  AUTO_MATCHED
+  MANUAL_REVIEW
+  REJECTED
+  ACCEPTED
+}
+
+model User {
+  id           String    @id @default(cuid())
+  username     String    @unique
+  password     String    // bcrypt hashed
+  role         UserRole  @default(DEMO)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  
+  jobs         Job[]
+  auditLogs    AuditLog[]
+}
+
+model Job {
+  id           String    @id @default(cuid())
+  type         JobType
+  status       JobStatus @default(PENDING)
+  progress     Int       @default(0)
+  totalItems   Int       @default(0)
+  processedItems Int    @default(0)
+  errorMessage String?
+  result       Json?
+  
+  storeFileUrl String?
+  systemFileUrl String?
+  exportFileUrl String?
+  
+  startedAt    DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  
+  userId       String
+  user         User      @relation(fields: [userId], references: [id])
+  
+  inventoryLogs InventoryLog[]
+  pricingLogs   PricingLog[]
+  aiMatches     AiMatch[]
+  
+  @@index([userId])
+  @@index([status])
+  @@index([type])
+}
+
+model InventoryLog {
+  id           String    @id @default(cuid())
+  sku          String
+  productName  String
+  oldQuantity  Int
+  newQuantity  Int
+  difference   Int
+  action       String    // "decreased" | "unchanged" | "increase_blocked"
+  createdAt    DateTime  @default(now())
+  
+  jobId        String
+  job          Job       @relation(fields: [jobId], references: [id])
+  
+  @@index([jobId])
+  @@index([sku])
+}
+
+model PricingLog {
+  id            String    @id @default(cuid())
+  sku           String
+  productName   String
+  oldCostPrice  Float?
+  newCostPrice  Float?
+  oldSellPrice  Float?
+  newSellPrice  Float?
+  profit        Float?
+  isVariant     Boolean   @default(false)
+  isExcluded    Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  
+  jobId         String
+  job           Job       @relation(fields: [jobId], references: [id])
+  
+  @@index([jobId])
+  @@index([sku])
+}
+
+model AiMatch {
+  id            String      @id @default(cuid())
+  storeName     String
+  systemName    String
+  confidence    Float
+  status        MatchStatus @default(MANUAL_REVIEW)
+  storeSku      String?
+  systemSku     String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  jobId         String
+  job           Job         @relation(fields: [jobId], references: [id])
+  
+  @@index([jobId])
+  @@index([status])
+}
+
+model ApiSetting {
+  id            String    @id @default(cuid())
+  groqApiKey    String    // encrypted
+  rateLimit     Int       @default(30)
+  lastTestedAt  DateTime?
+  isValid       Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model AuditLog {
+  id          String    @id @default(cuid())
+  action      String
+  details     Json?
+  ipAddress   String?
+  createdAt   DateTime  @default(now())
+  
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}
