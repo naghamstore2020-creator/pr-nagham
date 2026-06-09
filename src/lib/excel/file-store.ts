@@ -9,7 +9,7 @@ export async function saveUploadedFile(
   fileName: string
 ): Promise<string> {
   const ext = path.extname(fileName) || ".xlsx";
-  const name = path.basename(fileName, ext).replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, "_");
+  const name = path.basename(fileName, ext).replace(/[^a-zA-Z0-9]/g, "_");
   const uniqueName = `${name}_${Date.now()}${ext}`;
 
   try {
