@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { getUsers, createUser, toggleUserActive } from "@/actions/users";
+import { getUsers, createUser, changePassword, toggleUserActive } from "@/actions/users";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Users, ShieldAlert, UserPlus, Loader2, Trash2 } from "lucide-react";
+import { Users, ShieldAlert, UserPlus, Loader2, KeyRound } from "lucide-react";
 
 interface UserItem {
   id: string;
@@ -26,6 +26,9 @@ export default function UsersPage() {
   const [newRole, setNewRole] = useState<"ADMIN" | "DEMO">("DEMO");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
+  const [passwordUserId, setPasswordUserId] = useState<string | null>(null);
+  const [passwordValue, setPasswordValue] = useState("");
+  const [passwordUpdating, setPasswordUpdating] = useState(false);
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -58,6 +61,17 @@ export default function UsersPage() {
   const handleToggle = async (userId: string, current: boolean) => {
     const res = await toggleUserActive(userId, !current);
     if (res.success) await loadUsers();
+  };
+
+  const handlePasswordChange = async (userId: string) => {
+    if (!passwordValue.trim()) return;
+    setPasswordUpdating(true);
+    const res = await changePassword(userId, passwordValue);
+    if (res.success) {
+      setPasswordUserId(null);
+      setPasswordValue("");
+    }
+    setPasswordUpdating(false);
   };
 
   const roleColors: Record<string, string> = {
@@ -119,11 +133,52 @@ export default function UsersPage() {
                           </span>
                         </td>
                         <td className="py-3.5 pl-4">
-                          <Switch
-                            checked={user.isActive}
-                            onCheckedChange={() => handleToggle(user.id, user.isActive)}
-                            className="data-[state=checked]:bg-emerald-600"
-                          />
+                          <div className="flex items-center gap-2">
+                            {passwordUserId === user.id ? (
+                              <div className="flex items-center gap-1">
+                                <Input
+                                  type="password"
+                                  value={passwordValue}
+                                  onChange={(e) => setPasswordValue(e.target.value)}
+                                  className="w-28 h-7 text-xs bg-zinc-800 border-zinc-700 text-white"
+                                  autoFocus
+                                />
+                                <Button
+                                  size="sm"
+                                  onClick={() => handlePasswordChange(user.id)}
+                                  disabled={passwordUpdating || !passwordValue.trim()}
+                                  className="h-7 px-2 text-xs bg-emerald-600 hover:bg-emerald-700"
+                                >
+                                  {passwordUpdating ? <Loader2 className="w-3 h-3 animate-spin" /> : "حفظ"}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => { setPasswordUserId(null); setPasswordValue(""); }}
+                                  className="h-7 px-2 text-xs text-zinc-400"
+                                >
+                                  إلغاء
+                                </Button>
+                              </div>
+                            ) : (
+                              <>
+                                <Switch
+                                  checked={user.isActive}
+                                  onCheckedChange={() => handleToggle(user.id, user.isActive)}
+                                  className="data-[state=checked]:bg-emerald-600"
+                                />
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => setPasswordUserId(user.id)}
+                                  className="h-7 px-2 text-xs text-zinc-400 hover:text-zinc-200"
+                                >
+                                  <KeyRound className="w-3 h-3 ml-1" />
+                                  كلمة السر
+                                </Button>
+                              </>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}

@@ -62,6 +62,21 @@ export async function createUser(username: string, password: string, role: UserR
   }
 }
 
+export async function changePassword(userId: string, newPassword: string) {
+  await requirePermission("settings:users");
+
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+  try {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    });
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
 export async function toggleUserActive(userId: string, isActive: boolean) {
   await requirePermission("settings:users");
 
