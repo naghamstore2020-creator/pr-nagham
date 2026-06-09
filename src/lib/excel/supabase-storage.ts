@@ -12,8 +12,8 @@ const BUCKET = "uploads";
 export async function uploadToStorage(
   buffer: Buffer,
   fileName: string
-): Promise<string | null> {
-  if (!supabase) return null;
+): Promise<string> {
+  if (!supabase) throw new Error("Supabase client not initialized");
   const { data, error } = await supabase.storage
     .from(BUCKET)
     .upload(fileName, buffer, {
@@ -23,10 +23,7 @@ export async function uploadToStorage(
           : "application/octet-stream",
       upsert: true,
     });
-  if (error) {
-    console.warn("Supabase storage upload failed:", error.message);
-    return null;
-  }
+  if (error) throw new Error(`Supabase: ${error.message}`);
   const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(data.path);
   return urlData.publicUrl;
 }
