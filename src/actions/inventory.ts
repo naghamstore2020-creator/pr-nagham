@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@/lib/auth";
+import { auth, ensureUserInDb } from "@/lib/auth";
 import { requirePermission } from "@/lib/permissions";
 import { parseStoreExcel, parseSystemExcel, parseShelfExcel } from "@/lib/excel/parser";
 import { getFileBuffer, saveUploadedFile } from "@/lib/excel/file-store";
@@ -117,9 +117,7 @@ export async function executeInventoryJob(
     // 5. Try logging job to DB if user exists
     let jobId = `local-job-${Date.now()}`;
     try {
-      const dbUser = await db.user.findUnique({
-        where: { username },
-      });
+      const dbUser = await ensureUserInDb(username);
 
       if (dbUser) {
         const job = await db.job.create({

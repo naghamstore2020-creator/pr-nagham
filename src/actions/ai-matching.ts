@@ -8,7 +8,7 @@ import { matchBySku, MatchResult as EngineMatchResult } from "@/lib/matching/eng
 import { db } from "@/lib/db-client";
 import { JobType, MatchStatus } from "@prisma/client";
 import { MatchResult } from "@/types/ai";
-import { auth } from "@/lib/auth";
+import { auth, ensureUserInDb } from "@/lib/auth";
 
 export interface MatchingActionResult {
   success: boolean;
@@ -125,7 +125,7 @@ export async function executeMatchingJob(
 
     let jobId = `local-match-job-${Date.now()}`;
     try {
-      const dbUser = await db.user.findUnique({ where: { username } });
+      const dbUser = await ensureUserInDb(username);
       if (dbUser) {
         const job = await db.job.create({
           data: {
@@ -181,7 +181,7 @@ export async function saveAcceptedMatch(storeSku: string, systemSku: string, sys
   try {
     const session = await auth();
     if (!session) return { success: false, error: "غير مصرح" };
-    const dbUser = await db.user.findUnique({ where: { username: session.user?.username } });
+    const dbUser = await ensureUserInDb(session.user?.username || "");
     if (!dbUser) return { success: false, error: "المستخدم غير موجود" };
 
     const existing = await db.aiMatch.findFirst({ where: { storeSku } });

@@ -9,6 +9,7 @@ import { processFullUpdate } from "@/lib/pricing/full-updater";
 import { exportUpdatedStoreExcel, exportCostSummary, exportSellSummary, exportFullPricingSummary } from "@/lib/excel/exporter";
 import { db } from "@/lib/db-client";
 import { JobType } from "@prisma/client";
+import { ensureUserInDb } from "@/lib/auth";
 
 import { PricingResult } from "@/types/pricing";
 
@@ -39,9 +40,7 @@ async function persistPricingJob(params: {
   let jobId = `local-${params.type.toLowerCase()}-job-${Date.now()}`;
 
   try {
-    const dbUser = await db.user.findUnique({
-      where: { username: params.username },
-    });
+    const dbUser = await ensureUserInDb(params.username);
 
     if (dbUser) {
       const job = await db.job.create({
