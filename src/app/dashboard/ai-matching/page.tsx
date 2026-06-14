@@ -38,6 +38,7 @@ export default function AiMatchingPage() {
   const [filter, setFilter] = useState<FilterMode>("all");
   const [sort, setSort] = useState<SortMode>("confidence_desc");
   const [stats, setStats] = useState<{ total: number; autoMatched: number; manualReview: number; rejected: number } | null>(null);
+  const [jobId, setJobId] = useState<string | null>(null);
 
   useEffect(() => {
     const savedStore = sessionStorage.getItem("storeFile");
@@ -56,6 +57,7 @@ export default function AiMatchingPage() {
       if (res.success && res.matches) {
         setMatches(res.matches);
         setStats(res.stats || null);
+        if (res.jobId) setJobId(res.jobId);
         if (res.matches.length === 0) {
           toast.info("لا توجد نتائج مطابقة. تأكد من أن ملفات المتجر والنظام تحتوي على رموز SKU متطابقة.");
         } else {
@@ -75,7 +77,7 @@ export default function AiMatchingPage() {
     setMatches((prev) => prev.map((m) =>
       m.storeSku === storeSku && m.systemSku === systemSku ? { ...m, status: "accepted" as const } : m
     ));
-    const res = await saveAcceptedMatch(storeSku, systemSku, systemName, storeName);
+    const res = await saveAcceptedMatch(storeSku, systemSku, systemName, storeName, "ACCEPTED", jobId || undefined);
     if (res.success) toast.success("تم حفظ المطابقة في قاعدة البيانات");
     else toast.error(res.error || "فشل حفظ المطابقة");
   };
@@ -84,7 +86,7 @@ export default function AiMatchingPage() {
     setMatches((prev) => prev.map((m) =>
       m.storeSku === storeSku && m.systemSku === systemSku ? { ...m, status: "rejected" as const } : m
     ));
-    const res = await saveAcceptedMatch(storeSku, systemSku, systemName, storeName, "REJECTED");
+    const res = await saveAcceptedMatch(storeSku, systemSku, systemName, storeName, "REJECTED", jobId || undefined);
     if (res.success) toast.success("تم رفض المطابقة");
     else toast.error(res.error || "فشل رفض المطابقة");
   };
@@ -93,7 +95,7 @@ export default function AiMatchingPage() {
     const toAccept = matches.filter((m) => m.status === "manual_review");
     setMatches((prev) => prev.map((m) => (m.status === "manual_review" ? { ...m, status: "accepted" as const } : m)));
     const results = await Promise.allSettled(
-      toAccept.map((m) => saveAcceptedMatch(m.storeSku, m.systemSku, m.systemName, m.storeName))
+      toAccept.map((m) => saveAcceptedMatch(m.storeSku, m.systemSku, m.systemName, m.storeName, "ACCEPTED", jobId || undefined))
     );
     const saved = results.filter((r) => r.status === "fulfilled" && r.value.success).length;
     toast.success(`تم قبول ${toAccept.length} مطابقة وحفظ ${saved} في قاعدة البيانات`);

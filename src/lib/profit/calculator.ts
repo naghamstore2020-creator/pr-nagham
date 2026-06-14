@@ -1,11 +1,14 @@
 export interface ProfitInput {
   costPrice: number;
   sellPrice: number;
+  discountPercent?: number;
 }
 
 export interface ProfitBreakdown {
   costAfterVAT: number;
   sellAfterVAT: number;
+  discountPercent: number;
+  discountedSell: number;
   madaNet: number;
   madaProfit: number;
   visaNet: number;
@@ -56,13 +59,19 @@ export function calcTamara(sellAfterVAT: number): { net: number; commission: num
 export function calculateProfit(input: ProfitInput): ProfitBreakdown {
   const costAfterVAT = calcCostAfterVAT(input.costPrice);
   const sellAfterVAT = calcSellAfterVAT(input.sellPrice);
-  const mada = calcMada(sellAfterVAT);
-  const visa = calcVisa(sellAfterVAT);
+  const discountPct = input.discountPercent || 0;
+  const discountedSell = sellAfterVAT * (1 - discountPct / 100);
+  const madaSell = discountPct > 0 ? discountedSell : sellAfterVAT;
+  const visaSell = discountPct > 0 ? discountedSell : sellAfterVAT;
+  const mada = calcMada(madaSell);
+  const visa = calcVisa(visaSell);
   const tamara = calcTamara(sellAfterVAT);
 
   return {
     costAfterVAT: Math.round(costAfterVAT * 100) / 100,
     sellAfterVAT: Math.round(sellAfterVAT * 100) / 100,
+    discountPercent: discountPct,
+    discountedSell: Math.round(discountedSell * 100) / 100,
     madaNet: Math.round(mada.net * 100) / 100,
     madaProfit: Math.round((mada.net - costAfterVAT) * 100) / 100,
     visaNet: Math.round(visa.net * 100) / 100,

@@ -1,7 +1,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { authConfig } from "./auth.config";
-import { prisma } from "./prisma";
+import { db } from "./db-client";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 
@@ -20,8 +20,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const { username, password } = parsedCredentials.data;
 
-        // 1. Check fallback credentials (highly useful for demo or initial setup)
-        if (username === "admin" && password === "123") {
+        // 1. Check fallback credentials from environment variables (never hardcoded)
+        const adminPass = process.env.ADMIN_FALLBACK_PASS;
+        const demoPass = process.env.DEMO_FALLBACK_PASS;
+        const editorPass = process.env.EDITOR_FALLBACK_PASS;
+
+        if (adminPass && username === "admin" && password === adminPass) {
           return {
             id: "admin-fallback-id",
             username: "admin",
@@ -30,7 +34,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           };
         }
 
-        if (username === "demo" && password === "demo") {
+        if (demoPass && username === "demo" && password === demoPass) {
           return {
             id: "demo-fallback-id",
             username: "demo",
@@ -39,7 +43,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           };
         }
 
-        if (username === "editor" && password === "editor") {
+        if (editorPass && username === "editor" && password === editorPass) {
           return {
             id: "editor-fallback-id",
             username: "editor",
@@ -50,7 +54,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         // 2. Try database check
         try {
-          const user = await prisma.user.findUnique({
+          const user = await db.user.findUnique({
             where: { username },
           });
 

@@ -7,7 +7,7 @@ import { processCostUpdate } from "@/lib/pricing/cost-updater";
 import { processSellPricing } from "@/lib/pricing/sell-calculator";
 import { processFullUpdate } from "@/lib/pricing/full-updater";
 import { exportUpdatedStoreExcel, exportCostSummary, exportSellSummary, exportFullPricingSummary } from "@/lib/excel/exporter";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/lib/db-client";
 import { JobType } from "@prisma/client";
 
 import { PricingResult } from "@/types/pricing";
@@ -32,19 +32,19 @@ async function persistPricingJob(params: {
     totalExcluded: number;
   };
   results: PricingResult[];
-  profit?: number;
+  profitRate?: number;
   operationLogs?: string[];
   validationErrors?: string[];
 }): Promise<string> {
   let jobId = `local-${params.type.toLowerCase()}-job-${Date.now()}`;
 
   try {
-    const dbUser = await prisma.user.findUnique({
+    const dbUser = await db.user.findUnique({
       where: { username: params.username },
     });
 
     if (dbUser) {
-      const job = await prisma.job.create({
+      const job = await db.job.create({
         data: {
           type: params.type,
           status: "COMPLETED",
@@ -68,7 +68,8 @@ async function persistPricingJob(params: {
               newCostPrice: r.newCostPrice,
               oldSellPrice: r.oldSellPrice,
               newSellPrice: r.newSellPrice,
-              profit: params.profit,
+              // Store the actual per-product profit value, not the global rate
+              profit: r.profit ?? null,
               isVariant: r.isVariant,
               isExcluded: r.isExcluded,
             })),
@@ -78,7 +79,7 @@ async function persistPricingJob(params: {
       jobId = job.id;
 
       if (params.operationLogs && params.operationLogs.length > 0) {
-        await prisma.auditLog.create({
+        await db.auditLog.create({
           data: {
             userId: dbUser.id,
             action: params.type,
@@ -87,6 +88,7 @@ async function persistPricingJob(params: {
               operationLogs: params.operationLogs,
               validationErrors: params.validationErrors ?? [],
               stats: params.stats,
+              profitRate: params.profitRate,
             },
           },
         });
@@ -160,92 +162,47 @@ export async function executeCostPricingJob(
     const updatedStoreBuffer = await exportUpdatedStoreExcel(storeBuffer, updates);
     const exportFileUrl = await saveUploadedFile(updatedStoreBuffer, "updated_costs.xlsx");
 
+    // Guard against undefined values in diff calculation
     const summaryBuffer = await exportCostSummary(
       processingResult.results.map(r => ({
         sku: r.sku,
         productName: r.productName,
-        oldCost: r.oldCostPrice,
-        newCost: r.newCostPrice,
-        diff: r.newCostPrice - r.oldCostPrice,
+        oldCost: r.oldCostPrice ?? 0,
+        newCost: r.newCostPrice ?? 0,
+        diff: (r.newCostPrice ?? 0) - (r.oldCostPrice ?? 0),
       })),
       "cost_summary.xlsx"
     );
     const summaryFileUrl = await saveUploadedFile(summaryBuffer, "cost_summary.xlsx");
 
-    let jobId = `local-cost-job-${Date.now()}`;
-    try {
-      const dbUser = await prisma.user.findUnique({
-        where: { username },
-      });
+    const stats = {
+      totalProcessed: processingResult.totalProcessed,
+      totalUpdated: processingResult.totalUpdated,
+      totalUnchanged: processingResult.totalUnchanged,
+      totalExcluded: processingResult.totalExcluded,
+    };
 
-      if (dbUser) {
-        const job = await prisma.job.create({
-          data: {
-            type: JobType.COST_UPDATE,
-            status: "COMPLETED",
-            progress: 100,
-            totalItems: parsedStore.data.length,
-            processedItems: parsedStore.data.length,
-            storeFileUrl,
-            systemFileUrl,
-            exportFileUrl,
-            userId: dbUser.id,
-            result: {
-              stats: {
-                totalProcessed: processingResult.totalProcessed,
-                totalUpdated: processingResult.totalUpdated,
-                totalUnchanged: processingResult.totalUnchanged,
-                totalExcluded: processingResult.totalExcluded,
-              }
-            },
-            pricingLogs: {
-              create: processingResult.results.map((r) => ({
-                sku: r.sku,
-                productName: r.productName,
-                oldCostPrice: r.oldCostPrice,
-                newCostPrice: r.newCostPrice,
-                oldSellPrice: r.oldSellPrice,
-                newSellPrice: r.newSellPrice,
-                isVariant: r.isVariant,
-                isExcluded: r.isExcluded,
-              })),
-            },
-          },
-        });
-        jobId = job.id;
-      }
-    } catch (dbError) {
-      console.warn("Could not save Job to DB:", dbError);
-    }
+    // Now uses persistPricingJob (same as sell/full) — includes AuditLog
+    const jobId = await persistPricingJob({
+      username,
+      type: JobType.COST_UPDATE,
+      storeFileUrl,
+      systemFileUrl,
+      exportFileUrl,
+      totalItems: parsedStore.data.length,
+      stats,
+      results: processingResult.results,
+      operationLogs: [],
+      validationErrors: [],
+    });
 
     return {
       success: true,
       jobId,
       exportFileUrl,
       summaryFileUrl,
-      stats: {
-        totalProcessed: processingResult.totalProcessed,
-        totalUpdated: processingResult.totalUpdated,
-        totalUnchanged: processingResult.totalUnchanged,
-        totalExcluded: processingResult.totalExcluded,
-      },
-      details: processingResult.results.map((r) => ({
-        sku: r.sku,
-        productName: r.productName,
-        oldCostPrice: r.oldCostPrice,
-        newCostPrice: r.newCostPrice,
-        oldSellPrice: r.oldSellPrice,
-        newSellPrice: r.newSellPrice,
-        priceBeforeVAT: r.priceBeforeVAT,
-        profit: r.profit,
-        isVariant: r.isVariant,
-        isExcluded: r.isExcluded,
-        parentSku: r.parentSku,
-        action: r.action,
-        option1: r.option1,
-        option2: r.option2,
-        option3: r.option3,
-      })),
+      stats,
+      details: mapPricingDetails(processingResult.results),
     };
   } catch (error: unknown) {
     console.error("Execute cost job failed:", error);
@@ -283,9 +240,9 @@ export async function executeSellPricingJob(
       processingResult.results.map(r => ({
         sku: r.sku,
         productName: r.productName,
-        oldSell: r.oldSellPrice,
-        newSell: r.newSellPrice,
-        diff: r.newSellPrice - r.oldSellPrice,
+        oldSell: r.oldSellPrice ?? 0,
+        newSell: r.newSellPrice ?? 0,
+        diff: (r.newSellPrice ?? 0) - (r.oldSellPrice ?? 0),
       })),
       "sell_summary.xlsx"
     );
@@ -306,7 +263,7 @@ export async function executeSellPricingJob(
       totalItems: parsedStore.data.length,
       stats,
       results: processingResult.results,
-      profit,
+      profitRate: profit,
       operationLogs: processingResult.operationLogs,
       validationErrors: processingResult.errors,
     });
@@ -355,7 +312,7 @@ export async function executeFullUpdateJob(
       selectedSubs
     );
 
-    // دمج تحديثات التكلفة والبيع لنفس الصف في كائن واحد لتجنب التعارض عند الكتابة
+    // Merge cost and sell updates for the same row to avoid write conflicts
     const mergedUpdatesMap = new Map<number, { rowIndex: number; costPrice?: number; sellPrice?: number }>();
     for (const u of costUpdates) {
       mergedUpdatesMap.set(u.rowIndex, { rowIndex: u.rowIndex, costPrice: u.costPrice });
@@ -376,12 +333,12 @@ export async function executeFullUpdateJob(
       processingResult.results.map(r => ({
         sku: r.sku,
         productName: r.productName,
-        oldCost: r.oldCostPrice,
-        newCost: r.newCostPrice,
-        costDiff: r.newCostPrice - r.oldCostPrice,
-        oldSell: r.oldSellPrice,
-        newSell: r.newSellPrice,
-        sellDiff: r.newSellPrice - r.oldSellPrice,
+        oldCost: r.oldCostPrice ?? 0,
+        newCost: r.newCostPrice ?? 0,
+        costDiff: (r.newCostPrice ?? 0) - (r.oldCostPrice ?? 0),
+        oldSell: r.oldSellPrice ?? 0,
+        newSell: r.newSellPrice ?? 0,
+        sellDiff: (r.newSellPrice ?? 0) - (r.oldSellPrice ?? 0),
       })),
       "full_summary.xlsx"
     );
@@ -403,7 +360,7 @@ export async function executeFullUpdateJob(
       totalItems: parsedStore.data.length,
       stats,
       results: processingResult.results,
-      profit,
+      profitRate: profit,
       operationLogs: processingResult.operationLogs,
       validationErrors: processingResult.errors,
     });

@@ -31,6 +31,11 @@ export async function uploadExcelFile(
       return { success: false, error: "لم يتم تحديد أي ملف" };
     }
 
+    // Check file size (e.g. 10MB limit) to prevent memory exhaustion
+    if (file.size > 10 * 1024 * 1024) {
+      return { success: false, error: "حجم الملف يتجاوز الحد الأقصى المسموح به (10 ميجابايت)" };
+    }
+
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 

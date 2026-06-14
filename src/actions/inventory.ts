@@ -7,7 +7,7 @@ import { getFileBuffer, saveUploadedFile } from "@/lib/excel/file-store";
 import { processDailyInventory } from "@/lib/inventory/daily-processor";
 import { processFullInventory } from "@/lib/inventory/full-processor";
 import { exportUpdatedStoreExcel, exportUpdatedShelfExcel, exportInventorySummary } from "@/lib/excel/exporter";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/lib/db-client";
 import { JobType } from "@prisma/client";
 import { StoreProduct } from "@/types/excel";
 import { InventoryResult } from "@/types/inventory";
@@ -117,12 +117,12 @@ export async function executeInventoryJob(
     // 5. Try logging job to DB if user exists
     let jobId = `local-job-${Date.now()}`;
     try {
-      const dbUser = await prisma.user.findUnique({
+      const dbUser = await db.user.findUnique({
         where: { username },
       });
 
       if (dbUser) {
-        const job = await prisma.job.create({
+        const job = await db.job.create({
           data: {
             type: jobType,
             status: "COMPLETED",

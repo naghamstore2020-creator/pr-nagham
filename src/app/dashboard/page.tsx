@@ -19,7 +19,7 @@ import {
 
 export default function DashboardPage() {
   const { data: session } = useSession();
-  const [stats, setStats] = useState({ totalOperations: 0, totalProducts: 0, totalFiles: 0, successRate: 0, apiUsage: 0, lastOperation: "—" });
+  const [stats, setStats] = useState({ totalOperations: 0, totalProducts: 0, totalFiles: 0, successRate: 0, aiMatchingCount: 0, lastOperation: "—" });
   const [operations, setOperations] = useState<RecentOperation[]>([]);
 
   const isDemo = session?.user?.role === "DEMO";
@@ -33,10 +33,10 @@ export default function DashboardPage() {
     setOperations(ops);
     setStats({
       totalOperations: statsData.totalOperations,
-      totalProducts: 0,
+      totalProducts: statsData.totalProducts,
       totalFiles: statsData.totalFiles,
       successRate: statsData.successRate,
-      apiUsage: statsData.totalOperations,
+      aiMatchingCount: statsData.aiMatchingCount ?? 0,
       lastOperation: statsData.latestDate
         ? new Date(statsData.latestDate).toLocaleString("ar-SA")
         : "—",
@@ -78,7 +78,7 @@ export default function DashboardPage() {
     },
     {
       title: "عمليات المطابقة",
-      value: stats.totalOperations,
+      value: stats.aiMatchingCount,
       description: "مطابقات أسماء منفذة",
       icon: BrainCircuit,
       color: "text-purple-400 bg-purple-500/10 border-purple-500/20",
@@ -160,7 +160,14 @@ export default function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-900 text-sm text-zinc-300">
-                  {operations.map((op) => (
+                  {operations.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-10 text-center text-zinc-500 text-sm">
+                        لا توجد عمليات مسجّلة بعد
+                      </td>
+                    </tr>
+                  ) : (
+                    operations.map((op) => (
                     <tr key={op.id} className="hover:bg-zinc-900/20 transition-colors group">
                       <td className="py-3.5 pr-4 font-medium text-white">{op.type}</td>
                       <td className="py-3.5">
@@ -179,7 +186,8 @@ export default function DashboardPage() {
                       <td className="py-3.5 text-xs">{op.user}</td>
                       <td className="py-3.5 pl-4 text-left text-zinc-400 text-xs">{op.duration}</td>
                     </tr>
-                  ))}
+                  ))
+                  )}
                 </tbody>
               </table>
             </div>

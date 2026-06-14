@@ -34,6 +34,7 @@ export default function ProfitPage() {
   const [sort, setSort] = useState<SortKey>("madaProfit_desc");
   const [filter, setFilter] = useState<FilterMode>("all");
   const [threshold, setThreshold] = useState("10");
+  const [discountPercent, setDiscountPercent] = useState("5.8");
 
   useEffect(() => {
     const saved = sessionStorage.getItem("storeFile");
@@ -45,7 +46,8 @@ export default function ProfitPage() {
     setLoading(true);
     setItems([]);
     try {
-      const res = await analyzeProfits(storeFile.fileUrl);
+      const dp = parseFloat(discountPercent) || 0;
+      const res = await analyzeProfits(storeFile.fileUrl, dp);
       if (res.success && res.items) {
         setItems(res.items);
         if (res.items.length === 0) toast.info("لا توجد منتجات بأسعار تكلفة وبيع صالحة للتحليل");
@@ -193,7 +195,20 @@ export default function ProfitPage() {
                   <p className="text-xs text-zinc-500">{storeFile.rowCount} منتج</p>
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs text-zinc-400 whitespace-nowrap">كود خصم %</Label>
+                  <Input
+                    type="number"
+                    value={discountPercent}
+                    onChange={(e) => setDiscountPercent(e.target.value)}
+                    className="w-20 h-8 text-xs bg-zinc-800 border-zinc-700 text-white text-center"
+                    placeholder="5.8"
+                    step="0.1"
+                    min="0"
+                    max="100"
+                  />
+                </div>
                 <Button onClick={handleAnalyze} disabled={loading} className="bg-linear-to-r from-violet-600 to-blue-600 text-white">
                   <Play className="w-4 h-4 ml-2" />
                   {loading ? "جاري التحليل..." : "تحليل الأرباح"}

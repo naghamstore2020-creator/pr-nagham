@@ -1,7 +1,7 @@
 "use server";
 
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/lib/db-client";
 import bcrypt from "bcryptjs";
 import { UserRole } from "@prisma/client";
 import { requirePermission } from "@/lib/permissions";
@@ -10,7 +10,7 @@ export async function getUsers() {
   await requirePermission("settings:users");
 
   try {
-    return await prisma.user.findMany({
+    return await db.user.findMany({
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
@@ -47,7 +47,7 @@ export async function createUser(username: string, password: string, role: UserR
   const hashedPassword = await bcrypt.hash(password, 10);
 
   try {
-    const newUser = await prisma.user.create({
+    const newUser = await db.user.create({
       data: {
         username,
         password: hashedPassword,
@@ -67,7 +67,7 @@ export async function changePassword(userId: string, newPassword: string) {
 
   const hashedPassword = await bcrypt.hash(newPassword, 10);
   try {
-    await prisma.user.update({
+    await db.user.update({
       where: { id: userId },
       data: { password: hashedPassword },
     });
@@ -81,7 +81,7 @@ export async function toggleUserActive(userId: string, isActive: boolean) {
   await requirePermission("settings:users");
 
   try {
-    await prisma.user.update({
+    await db.user.update({
       where: { id: userId },
       data: { isActive },
     });

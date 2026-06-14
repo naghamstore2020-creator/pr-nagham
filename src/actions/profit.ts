@@ -21,7 +21,7 @@ export interface ProfitResult {
   error?: string;
 }
 
-export async function analyzeProfits(storeFileUrl: string): Promise<ProfitResult> {
+export async function analyzeProfits(storeFileUrl: string, discountPercent?: number): Promise<ProfitResult> {
   try {
     const buffer = await getFileBuffer(storeFileUrl);
     const parsed = await parseStoreExcel(buffer, "store.xlsx");
@@ -30,7 +30,7 @@ export async function analyzeProfits(storeFileUrl: string): Promise<ProfitResult
       .filter((p) => p.costPrice > 0 && p.sellPrice > 0)
       .map((p) => {
         const options = [p.option1, p.option2, p.option3].filter(Boolean).join(" - ");
-        const breakdown = calculateProfit({ costPrice: p.costPrice, sellPrice: p.sellPrice });
+        const breakdown = calculateProfit({ costPrice: p.costPrice, sellPrice: p.sellPrice, discountPercent });
         return {
           sku: p.sku || "",
           productName: p.name,
