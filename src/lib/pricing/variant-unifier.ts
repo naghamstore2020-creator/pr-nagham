@@ -99,20 +99,39 @@ export function unifyVariantSellPrices(
     }
   }
 
-  const finalPrices = unifiedPrices.filter(
+  // 1. Get prices of available options
+  const availablePrices = unifiedPrices.filter(
     (price, index) =>
       price !== null &&
       price > 0 &&
       entries[index].canProcess &&
-      !entries[index].isExcluded
+      !entries[index].isExcluded &&
+      entries[index].isAvailable
   ) as number[];
 
-  const parentPrice = finalPrices.length > 0 ? Math.min(...finalPrices) : null;
+  let parentPrice: number | null = null;
 
-  if (parentPrice !== null) {
+  if (availablePrices.length > 0) {
+    parentPrice = Math.min(...availablePrices);
     operationLogs.push(
-      `تم تعيين السعر الرئيسي لمنتج ${productName} على ${formatPrice(parentPrice)} ريال لأنه أقل سعر بين الخيارات.`
+      `تم تعيين السعر الرئيسي لمنتج ${productName} على ${formatPrice(parentPrice)} ريال لأنه أقل سعر بين الخيارات المتوفرة.`
     );
+  } else {
+    // 2. Fallback: Get prices of all options (lowest registered price)
+    const allPrices = unifiedPrices.filter(
+      (price, index) =>
+        price !== null &&
+        price > 0 &&
+        entries[index].canProcess &&
+        !entries[index].isExcluded
+    ) as number[];
+
+    if (allPrices.length > 0) {
+      parentPrice = Math.min(...allPrices);
+      operationLogs.push(
+        `تم تعيين السعر الرئيسي لمنتج ${productName} على ${formatPrice(parentPrice)} ريال لأنه أقل سعر مسجل بين الخيارات لعدم توفر أي منها.`
+      );
+    }
   }
 
   return { unifiedPrices, parentPrice, operationLogs };

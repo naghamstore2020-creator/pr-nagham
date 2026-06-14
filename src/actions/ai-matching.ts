@@ -60,10 +60,12 @@ export async function executeMatchingJob(
       return { success: true, matches: [], stats: { total: 0, autoMatched: 0, manualReview: 0, rejected: 0 } };
     }
 
-    const systemProductsCandidates = parsedSystem.data.map((p) => ({
-      name: p.name,
-      sku: p.sku,
-    }));
+    const systemProductsCandidates = parsedSystem.data
+      .filter((p) => p.quantity > 0)
+      .map((p) => ({
+        name: p.name,
+        sku: p.sku,
+      }));
 
     // Run computation for products not in cache
     // Build system SKU set for determining unmatched products

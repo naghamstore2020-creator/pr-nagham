@@ -27,7 +27,7 @@ export async function analyzeProfits(storeFileUrl: string, discountPercent?: num
     const parsed = await parseStoreExcel(buffer, "store.xlsx");
 
     const items: ProfitItem[] = parsed.data
-      .filter((p) => p.costPrice > 0 && p.sellPrice > 0)
+      .filter((p) => p.costPrice > 0 && p.sellPrice > 0 && p.quantity > 0)
       .map((p) => {
         const options = [p.option1, p.option2, p.option3].filter(Boolean).join(" - ");
         const breakdown = calculateProfit({ costPrice: p.costPrice, sellPrice: p.sellPrice, discountPercent });
