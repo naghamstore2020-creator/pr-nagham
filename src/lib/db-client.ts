@@ -90,9 +90,9 @@ export const db = {
   user: {
     async findUnique({ where }: { where: { id?: string; username?: string } }): Promise<User | null> {
       const key = Object.keys(where)[0]
-      const { data, error } = await getSupabase().from("User").select("*").eq(key, (where as any)[key]).maybeSingle()
+      const { data, error } = await getSupabase().from("User").select("*").eq(key, (where as any)[key]).limit(1)
       if (error) throw error
-      return data as User | null
+      return (data?.[0] as User | null) || null
     },
 
     async findMany({ orderBy, select }: { orderBy?: any; select?: any } = {}): Promise<any[]> {
@@ -109,36 +109,36 @@ export const db = {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         ...data,
-      }).select().single()
+      }).select()
       if (error) throw error
-      return result
+      return result?.[0] || null
     },
 
     async update({ where, data }: { where: { id: string }; data: any }): Promise<any> {
       const { data: result, error } = await getSupabase().from("User").update({
         ...data,
         updatedAt: new Date().toISOString(),
-      }).eq("id", where.id).select().single()
+      }).eq("id", where.id).select()
       if (error) throw error
-      return result
+      return result?.[0] || null
     },
   },
 
   job: {
     async findUnique({ where }: { where: { id: string } }): Promise<Job | null> {
       const key = Object.keys(where)[0]
-      const { data, error } = await getSupabase().from("Job").select("*").eq(key, (where as any)[key]).maybeSingle()
+      const { data, error } = await getSupabase().from("Job").select("*").eq(key, (where as any)[key]).limit(1)
       if (error) throw error
-      return data as Job | null
+      return (data?.[0] as Job | null) || null
     },
 
     async findFirst({ where, orderBy }: { where?: any; orderBy?: any } = {}): Promise<Job | null> {
       let q = getSupabase().from("Job").select("*")
       q = applyWhere(q, where)
       q = applyOrder(q, orderBy)
-      const { data, error } = await q.limit(1).maybeSingle()
+      const { data, error } = await q.limit(1)
       if (error) throw error
-      return data as Job | null
+      return (data?.[0] as Job | null) || null
     },
 
     async findMany({ where, orderBy, skip, take, include, select, distinct }: {
@@ -177,13 +177,16 @@ export const db = {
     async create({ data }: { data: any }): Promise<any> {
       const { aiMatches, pricingLogs, inventoryLogs, ...jobData } = data
       const now = new Date().toISOString()
-      const { data: job, error } = await getSupabase().from("Job").insert({
+      const { data: jobResult, error } = await getSupabase().from("Job").insert({
         id: crypto.randomUUID(),
         createdAt: now,
         updatedAt: now,
         ...jobData,
-      }).select().single()
+      }).select()
       if (error) throw error
+      const job = jobResult?.[0] || null
+      if (!job) throw new Error("Failed to create job record")
+
       if (aiMatches?.create?.length) {
         const aiRows = aiMatches.create.map((m: any) => ({
           id: crypto.randomUUID(),
@@ -237,9 +240,9 @@ export const db = {
   aiMatch: {
     async findFirst({ where }: { where: any }): Promise<AiMatch | null> {
       const key = Object.keys(where)[0]
-      const { data, error } = await getSupabase().from("AiMatch").select("*").eq(key, (where as any)[key]).maybeSingle()
+      const { data, error } = await getSupabase().from("AiMatch").select("*").eq(key, (where as any)[key]).limit(1)
       if (error) throw error
-      return data as AiMatch | null
+      return (data?.[0] as AiMatch | null) || null
     },
 
     async findMany({ where, select }: { where?: any; select?: any } = {}): Promise<any[]> {
@@ -254,9 +257,9 @@ export const db = {
       const { data: result, error } = await getSupabase().from("AiMatch").update({
         ...data,
         updatedAt: new Date().toISOString(),
-      }).eq("id", where.id).select().single()
+      }).eq("id", where.id).select()
       if (error) throw error
-      return result
+      return result?.[0] || null
     },
 
     async create({ data }: { data: any }): Promise<any> {
@@ -266,9 +269,9 @@ export const db = {
         createdAt: now,
         updatedAt: now,
         ...data,
-      }).select().single()
+      }).select()
       if (error) throw error
-      return result
+      return result?.[0] || null
     },
   },
 
@@ -278,9 +281,11 @@ export const db = {
         id: crypto.randomUUID(),
         createdAt: new Date().toISOString(),
         ...data,
-      }).select().single()
+      }).select()
       if (error) throw error
-      return result
+      return result?.[0] || null
     },
   },
 }
+
+
